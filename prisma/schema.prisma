@@ -1,0 +1,268 @@
+// Dive database schema. All resources are SIMULATED game currencies.
+// Money-like values are stored as integers (credits, milli-Quanta, energy units)
+// so arithmetic is exact. 1 Quanta (Q) = 1000 milli-Quanta (mQ).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EquipmentKind {
+  CHASSIS
+  PROCESSOR
+  ACCELERATOR
+  MEMORY
+  COOLING
+  PSU
+}
+
+enum ChallengeType {
+  PATH
+  COLORING
+  KNAPSACK
+  SPANNING_TREE
+}
+
+enum ChallengeStatus {
+  OPEN
+  USED
+}
+
+enum JobStatus {
+  RUNNING
+  COMPLETED
+  CLAIMED
+  CANCELLED
+}
+
+enum LedgerResource {
+  CREDITS
+  QUANTA
+  ENERGY
+}
+
+enum LedgerType {
+  GRANT
+  PURCHASE
+  UPGRADE
+  ENERGY_RECHARGE
+  JOB_FEE
+  JOB_ENERGY
+  JOB_REFUND
+  REWARD_CLAIM
+  EXCHANGE
+  ACHIEVEMENT
+}
+
+model Player {
+  id          String   @id @default(cuid())
+  handle      String   @unique
+  displayName String
+  credits     Int
+  quantaMilli Int      @default(0)
+  energy      Int
+  xp          Int      @default(0)
+  level       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventory    InventoryItem[]
+  rigs         Rig[]
+  challenges   ChallengeInstance[]
+  jobs         MiningJob[]
+  claims       RewardClaim[]
+  ledger       LedgerEntry[]
+  achievements PlayerAchievement[]
+}
+
+model EquipmentDefinition {
+  id              String        @id @default(cuid())
+  slug            String        @unique
+  name            String
+  kind            EquipmentKind
+  tier            Int
+  description     String
+  price           Int
+  requiredLevel   Int           @default(1)
+  compute         Int           @default(0)
+  memory          Int           @default(0)
+  powerDraw       Int           @default(0)
+  powerCapacity   Int           @default(0)
+  heat            Int           @default(0)
+  coolingCapacity Int           @default(0)
+  accelSlots      Int           @default(0)
+  memSlots        Int           @default(0)
+  createdAt       DateTime      @default(now())
+
+  items InventoryItem[]
+
+  @@index([kind])
+}
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  playerId    String
+  equipmentId String
+  level       Int      @default(1)
+  acquiredAt  DateTime @default(now())
+
+  player    Player              @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  equipment EquipmentDefinition @relation(fields: [equipmentId], references: [id])
+  assigned  RigComponent?
+
+  @@index([playerId])
+}
+
+model Rig {
+  id        String   @id @default(cuid())
+  playerId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  player     Player         @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  components RigComponent[]
+  jobs       MiningJob[]
+
+  @@index([playerId])
+}
+
+model RigComponent {
+  id              String   @id @default(cuid())
+  rigId           String
+  inventoryItemId String   @unique
+  assignedAt      DateTime @default(now())
+
+  rig  Rig           @relation(fields: [rigId], references: [id], onDelete: Cascade)
+  item InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@index([rigId])
+}
+
+model ChallengeDefinition {
+  id            String        @id @default(cuid())
+  slug          String        @unique
+  type          ChallengeType
+  name          String
+  description   String
+  difficulty    Int
+  requiredLevel Int           @default(1)
+  size          Int
+  baseRewardMq  Int
+  workUnits     Int
+  minCompute    Int           @default(0)
+  minMemory     Int           @default(0)
+  feeCredits    Int
+  energyPar     Int
+  xpReward      Int
+  createdAt     DateTime      @default(now())
+
+  instances ChallengeInstance[]
+}
+
+model ChallengeInstance {
+  id           String          @id @default(cuid())
+  playerId     String
+  definitionId String
+  seed         Int
+  payload      Json
+  status       ChallengeStatus @default(OPEN)
+  createdAt    DateTime        @default(now())
+
+  player     Player              @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  definition ChallengeDefinition @relation(fields: [definitionId], references: [id])
+  job        MiningJob?
+
+  @@index([playerId, status])
+}
+
+model MiningJob {
+  id                  String    @id @default(cuid())
+  playerId            String
+  rigId               String
+  challengeInstanceId String    @unique
+  status              JobStatus @default(RUNNING)
+  startedAt           DateTime
+  endsAt              DateTime
+  durationSec         Int
+  energyCost          Int
+  feeCredits          Int
+  effectiveCompute    Int
+  optimal             Boolean
+  efficient           Boolean
+  rewardMq            Int
+  xpReward            Int
+  settledAt           DateTime?
+  claimedAt           DateTime?
+  cancelledAt         DateTime?
+  idempotencyKey      String?
+  createdAt           DateTime  @default(now())
+
+  player    Player            @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  rig       Rig               @relation(fields: [rigId], references: [id])
+  challenge ChallengeInstance @relation(fields: [challengeInstanceId], references: [id])
+  claim     RewardClaim?
+
+  @@unique([playerId, idempotencyKey])
+  @@index([playerId, status])
+  @@index([rigId, status])
+}
+
+model RewardClaim {
+  id          String   @id @default(cuid())
+  jobId       String   @unique
+  playerId    String
+  quantaMilli Int
+  xp          Int
+  createdAt   DateTime @default(now())
+
+  job    MiningJob @relation(fields: [jobId], references: [id])
+  player Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model LedgerEntry {
+  id             String         @id @default(cuid())
+  playerId       String
+  type           LedgerType
+  resource       LedgerResource
+  amount         Int
+  balanceAfter   Int
+  refType        String
+  refId          String
+  memo           String
+  idempotencyKey String?
+  createdAt      DateTime       @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, idempotencyKey, resource])
+  @@index([playerId, createdAt])
+}
+
+model AchievementDefinition {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  description   String
+  rewardCredits Int      @default(0)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  unlocked PlayerAchievement[]
+}
+
+model PlayerAchievement {
+  id            String   @id @default(cuid())
+  playerId      String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  player      Player                @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  achievement AchievementDefinition @relation(fields: [achievementId], references: [id])
+
+  @@unique([playerId, achievementId])
+}
