@@ -13,7 +13,7 @@ export const SIMULATION_NOTICE =
 /** 1 Quanta = 1000 milli-Quanta. Quanta is stored as integer milli-Quanta. */
 export const MQ_PER_Q = 1000
 
-/** Starting balances for a new demo player. */
+/** Starting balances for every new player. */
 export const STARTING_RESOURCES = {
   credits: 1500,
   quantaMilli: 0,
@@ -74,11 +74,6 @@ export const PROGRESSION = {
 
 /** Energy-per-compute ratio considered "par" when setting challenge energy par. */
 export const ENERGY_PAR_WATTS_PER_COMPUTE = 5
-
-export const DEMO = {
-  defaultHandle: 'demo',
-  displayName: 'Demo Miner',
-} as const
 
 export function quantaMilliToQ(mq: number): number {
   return mq / MQ_PER_Q

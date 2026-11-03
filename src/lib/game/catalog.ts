@@ -50,7 +50,7 @@ export const EQUIPMENT_SEEDS: EquipmentSeed[] = [
   { slug: 'psu-1000', name: '1000 W Gold PSU', kind: 'PSU', tier: 3, description: 'Heavy-duty power supply.', price: 800, requiredLevel: 5, powerCapacity: 1000 },
 ]
 
-/** Equipment the demo player starts with, already assembled into "Starter Rig". */
+/** Equipment every new player starts with, already assembled into "Starter Rig". */
 export const STARTER_LOADOUT = ['chassis-starter', 'cpu-pulse', 'ram-8', 'cool-fan', 'psu-300'] as const
 
 export interface ChallengeSeed {

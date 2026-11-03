@@ -11,7 +11,7 @@ export async function getDashboard(playerId: string, now: Date = new Date()) {
   const player = await prisma.player.findUnique({ where: { id: playerId } })
   if (!player) throw new DomainError('NOT_FOUND', 'Player not found.')
 
-  const [rigs, jobs, recent, reconciliation, openChallenges, unlockedAchievements, totalAchievements, claimed] = await Promise.all([
+  const [rigs, jobs, recent, reconciliation, openChallenges, unlockedAchievements, totalAchievements, claimed, finished, optimal, efficient, energyNet] = await Promise.all([
     listRigs(playerId),
     listJobs(playerId, now),
     prisma.ledgerEntry.findMany({ where: { playerId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 6 }),
@@ -20,11 +20,15 @@ export async function getDashboard(playerId: string, now: Date = new Date()) {
     prisma.playerAchievement.count({ where: { playerId } }),
     prisma.achievementDefinition.count(),
     prisma.rewardClaim.aggregate({ where: { playerId }, _sum: { quantaMilli: true }, _count: { _all: true } }),
+    prisma.miningJob.count({ where: { playerId, status: { in: ['COMPLETED', 'CLAIMED'] } } }),
+    prisma.miningJob.count({ where: { playerId, status: { not: 'CANCELLED' }, optimal: true } }),
+    prisma.miningJob.count({ where: { playerId, status: { not: 'CANCELLED' }, efficient: true } }),
+    prisma.ledgerEntry.aggregate({ where: { playerId, type: { in: ['JOB_ENERGY', 'JOB_REFUND'] } }, _sum: { amount: true } }),
   ])
 
   return {
     notice: SIMULATION_NOTICE,
-    player: { id: player.id, displayName: player.displayName, handle: player.handle },
+    player: { username: player.displayName, memberSince: player.createdAt.toISOString() },
     balances: { credits: player.credits, quantaMilli: player.quantaMilli, energy: player.energy, energyCap: ENERGY.cap },
     rules: {
       creditsPerQuanta: REFINERY.creditsPerQuanta,
@@ -40,6 +44,10 @@ export async function getDashboard(playerId: string, now: Date = new Date()) {
       quantaEarnedMilli: claimed._sum.quantaMilli ?? 0,
       achievementsUnlocked: unlockedAchievements,
       achievementsTotal: totalAchievements,
+      jobsFinished: finished,
+      optimalSolves: optimal,
+      efficientJobs: efficient,
+      energySpent: -(energyNet._sum.amount ?? 0),
     },
     recentLedger: recent.map((e) => ({
       id: e.id,

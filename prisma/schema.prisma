@@ -58,8 +58,65 @@ enum LedgerType {
   ACHIEVEMENT
 }
 
+// An authenticated account. Credentials only; all game state lives on Player.
+model User {
+  id            String   @id @default(cuid())
+  username      String
+  usernameLower String   @unique
+  email         String   @unique // always stored lower-case
+  passwordHash  String // Argon2id
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  player      Player?
+  sessions    Session[]
+  resetTokens PasswordResetToken[]
+}
+
+// Server-side session. Only a SHA-256 hash of the cookie token is stored.
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  expiresAt  DateTime
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Single-use, time-limited password reset token. Only the hash is stored.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Fixed-window counters for rate limiting (works across serverless instances).
+model RateLimitBucket {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+
+  @@index([windowStart])
+}
+
+// The player: profile, resources (credits, Quanta, energy) and progression for exactly one user.
+// userId is null only for archived legacy records (the former shared demo player).
 model Player {
   id          String   @id @default(cuid())
+  userId      String?  @unique
   handle      String   @unique
   displayName String
   credits     Int
@@ -70,6 +127,7 @@ model Player {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  user         User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
   inventory    InventoryItem[]
   rigs         Rig[]
   challenges   ChallengeInstance[]

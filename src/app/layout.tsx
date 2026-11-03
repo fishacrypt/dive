@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Providers } from '@/components/providers'
-import { AppShell } from '@/components/layout/app-shell'
 
 export const metadata: Metadata = {
-  title: 'Dive: Build Your Rig. Solve Useful Work. Earn Quanta.',
-  description: 'Dive is a simulated useful-work mining game. All resources are simulated and have no real-world value.',
+  title: 'dive: Build Your Rig. Solve Useful Work. Earn Quanta.',
+  description: 'dive is a simulated useful-work mining game. All resources are simulated and have no real-world value.',
 }
 
 export const viewport: Viewport = { themeColor: '#0b0d10', width: 'device-width', initialScale: 1 }
@@ -23,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Providers>
-          <AppShell>{children}</AppShell>
+          {children}
         </Providers>
       </body>
     </html>

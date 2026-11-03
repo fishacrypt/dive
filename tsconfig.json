@@ -44,12 +44,14 @@
     "e2e",
     "vitest.config.ts",
     "playwright.config.ts",
-    ".next-e2e/types/**/*.ts"
+    ".next-e2e/types/**/*.ts",
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     ".next",
     "contracts",
-    "lib"
+    "lib",
+    "scripts/compass-deploy.ts"
   ]
 }

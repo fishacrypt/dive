@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { prisma } from '@/server/db'
-import { provisionPlayer } from '@/server/services/demo'
+import { provisionPlayer } from '@/server/services/player-init'
 import { generateInstance } from '@/server/services/challenges'
 import { reconcile } from '@/server/services/ledger'
 
@@ -51,4 +51,30 @@ export async function expectReconciled(playerId: string): Promise<void> {
   for (const r of rows) {
     if (!r.reconciled) throw new Error(`${r.resource} does not reconcile: balance ${r.balance} vs ledger ${r.ledgerSum}`)
   }
+}
+
+// ---------- Accounts (through the real HTTP handlers) ----------
+import { POST as registerRoute } from '@/app/api/auth/register/route'
+import { asCookie, call } from './http'
+
+export interface TestAccount {
+  username: string
+  email: string
+  password: string
+  cookie: string
+  playerId: string
+}
+
+export const TEST_PASSWORD = 'correct-horse-battery-9'
+
+/** Register a brand-new account through the API, exactly like the sign-up form does. */
+export async function registerAccount(overrides: Partial<{ username: string; email: string; password: string }> = {}): Promise<TestAccount> {
+  const id = randomUUID().replace(/-/g, '').slice(0, 10)
+  const username = overrides.username ?? `p_${id}`
+  const email = overrides.email ?? `${username}@example.com`
+  const password = overrides.password ?? TEST_PASSWORD
+  const res = await call(registerRoute, { body: { username, email, password, confirmPassword: password } })
+  if (res.status !== 201 || !res.sessionCookie) throw new Error(`register failed: ${JSON.stringify(res.json)}`)
+  const user = await prisma.user.findUniqueOrThrow({ where: { email }, include: { player: true } })
+  return { username, email, password, cookie: asCookie(res.sessionCookie) as string, playerId: user.player?.id as string }
 }

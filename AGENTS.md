@@ -1,6 +1,6 @@
-# Dive
+# dive
 
-Project memory for agents and humans. Dive is a SIMULATED useful-work mining game. No wallets, tokens or blockchain. Never imply Quanta is withdrawable or a real QMS reward.
+Project memory for agents and humans. dive is a SIMULATED useful-work mining game. No wallets, tokens or blockchain. Never imply Quanta is withdrawable or a real QMS reward.
 
 ## Stack
 
@@ -15,8 +15,11 @@ Project memory for agents and humans. Dive is a SIMULATED useful-work mining gam
 - `src/lib/challenges/*`: seeded generators, exact solvers (Dijkstra, backtracking colouring, knapsack DP, Kruskal) and server-side solution validators.
 - `src/server/services/*`: domain services. All balance changes go through `ledger.ts` `adjust()` (conditional update + ledger entry in one transaction).
 - `src/app/api/**`: thin route handlers wrapped by `route()` in `src/server/http.ts` (envelope `{ ok, data | error }`, central error mapping).
-- `src/server/session.ts`: demo-player session. NOT authentication. Replace `getPlayerId` to add real auth.
-- `src/app/*/page.tsx`, `src/components/*`, `src/hooks/use-game.ts`: UI (React Query, polling for jobs).
+- `src/server/auth/*`: Argon2id passwords, DB-backed sessions (`session.ts`), rate limiting, token hashing. `src/server/services/auth.ts`: register, login, logout, password reset/change, username change. `src/server/mailer.ts`: reset emails (Resend, dev-outbox, memory for tests). `src/server/http.ts`: `route()` (authenticated: player comes ONLY from the session cookie) and `publicRoute()` (auth endpoints), both with the CSRF origin check.
+- Accounts model: `User` (credentials) 1:1 `Player` (profile, resources, XP/level) which owns inventory, rigs, jobs, challenges, claims, ledger, achievements. `Player.userId` is null only for the archived legacy demo record. Do not add parallel per-user tables: extend Player-scoped models and always query by `{ id, playerId }`.
+- Pages: `(game)` route group requires a session (server layout redirects to /login); `(auth)` group redirects signed-in users to /dashboard; `/` is the welcome page.
+- `/api/cron/settle` (CRON_SECRET) settles all due jobs and prunes sessions, tokens and counters.
+- `src/app/(game)/*/page.tsx`, `src/components/*`, `src/hooks/use-game.ts`: UI (React Query, polling for jobs).
 
 ## Rules to keep
 
