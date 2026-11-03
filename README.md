@@ -2,8 +2,6 @@
 
 dive is a useful-work mining simulator. You buy equipment, assemble rigs, solve real computational challenges (routing, scheduling, channel assignment, network design), run persistent mining jobs, and earn simulated Quanta to grow your farm.
 
-Built with [Arc Studio](https://studio.arc.io)
-
 **Build Your Rig. Solve Useful Work. Earn Quanta.**
 
 ## Accounts
